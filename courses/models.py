@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.db import models
 
 NULLABLE = {'blank': True, 'null': True}
@@ -30,3 +31,25 @@ class Lesson(models.Model):
     class Meta:
         verbose_name = 'Урок'
         verbose_name_plural = 'Уроки'
+
+
+class Payment(models.Model):
+    class PaymentMethod(models.TextChoices):
+        CASH = 'cash', 'наличные'
+        TRANSFER = 'transfer', 'перевод на счет'
+
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, verbose_name='Пользователь',
+                             related_name='payments')
+    payment_date = models.DateField(auto_now_add=True, verbose_name='Дата оплаты')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, verbose_name='Оплаченный курс', **NULLABLE)
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, verbose_name='Оплаченный урок', **NULLABLE)
+    payment_amount = models.IntegerField(verbose_name='Сумма оплаты')
+    payment_method = models.CharField(max_length=10, choices=PaymentMethod.choices, verbose_name='Способ оплаты')
+
+    def __str__(self):
+        return f'Оплата за: {self.course.title if self.course else self.lesson.title}, ' \
+               f'пользователем - {self.user.email}'
+
+    class Meta:
+        verbose_name = 'Платеж'
+        verbose_name_plural = 'Платежи'
