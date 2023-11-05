@@ -9,4 +9,10 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'email', 'avatar', 'phone', 'city', 'payments')
+        fields = ('id', 'email', 'first_name', 'last_name', 'avatar', 'phone', 'city', 'payments', 'password')
+
+
+class UserSerializerForStranger(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'email', 'first_name', 'phone', 'city', 'avatar')
