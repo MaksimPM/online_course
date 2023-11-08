@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 
+from config import settings
+
 NULLABLE = {'blank': True, 'null': True}
 
 
@@ -8,6 +10,7 @@ class Course(models.Model):
     title = models.CharField(max_length=150, verbose_name='Название')
     preview = models.ImageField(upload_to='courses/preview', verbose_name='Превью', **NULLABLE)
     description = models.TextField(verbose_name='Описание')
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, **NULLABLE, verbose_name='Владелец')
 
     def __str__(self):
         return f'{self.title}'
@@ -24,6 +27,7 @@ class Lesson(models.Model):
     video_link = models.URLField(verbose_name='Ссылка на видео', **NULLABLE)
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE, verbose_name='Курс', related_name='lessons')
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, **NULLABLE, verbose_name='Владелец')
 
     def __str__(self):
         return f'Урок - {self.title}, курса - {self.course.title}'
@@ -53,3 +57,17 @@ class Payment(models.Model):
     class Meta:
         verbose_name = 'Платеж'
         verbose_name_plural = 'Платежи'
+
+
+class Subscription(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, **NULLABLE, related_name='subscription'
+                             , verbose_name='Пользователь')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='subscription', verbose_name='Курс')
+    subscribed = models.BooleanField(default=False, verbose_name='Признак подписки')
+
+    def __str__(self):
+        return f"{self.subscribed} - {self.course} - {self.user}"
+
+    class Meta:
+        verbose_name = 'Подписка'
+        verbose_name_plural = 'Подписки'

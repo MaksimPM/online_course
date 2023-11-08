@@ -1,5 +1,5 @@
 from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.generics import ListAPIView, RetrieveAPIView, CreateAPIView, DestroyAPIView, UpdateAPIView
 
@@ -55,3 +55,39 @@ class PaymentListAPIView(generics.ListAPIView):
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
+
+
+class SubscriptionCreateAPIView(generics.CreateAPIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = SubscriptionSerializer
+
+    def perform_create(self, serializer):
+        """Сохраняет авторизованного пользователя в объекте подписки"""
+
+        new_subscription = serializer.save()
+        new_subscription.user = self.request.user
+        new_subscription.subscribed = True
+        new_subscription.save()
+
+
+class SubscriptionListAPIView(generics.ListAPIView):
+    permission_classes = (IsAuthenticated, IsAdminUser,)
+    serializer_class = SubscriptionSerializer
+    queryset = Subscription.objects.all()
+
+
+class SubscriptionRetrieveAPIView(generics.RetrieveAPIView):
+    permission_classes = (IsAuthenticated, IsAdminUser,)
+    serializer_class = SubscriptionSerializer
+    queryset = Subscription.objects.all()
+
+
+class SubscriptionUpdateAPIView(generics.UpdateAPIView):
+    permission_classes = (IsAuthenticated, IsAdminUser,)
+    serializer_class = SubscriptionSerializer
+    queryset = Subscription.objects.all()
+
+
+class SubscriptionDestroyAPIView(generics.DestroyAPIView):
+    permission_classes = (IsAuthenticated,)
+    queryset = Subscription.objects.all()

@@ -10,3 +10,4 @@ sqlparse==0.4.4
 python-dotenv~=1.0.0
 django-filter~=23.3
 djangorestframework-simplejwt
+coverage==7.3.2
