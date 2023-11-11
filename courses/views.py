@@ -9,6 +9,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from courses.stripe_api import create_intent, get_intent
+
 
 class LessonListAPIView(ListAPIView):
     serializer_class = LessonSerializer
@@ -51,6 +53,30 @@ class PaymentListAPIView(generics.ListAPIView):
     filterset_fields = ['course', 'lesson', 'payment_method']
     ordering_fields = ['payment_date']
     permission_classes = (IsAuthenticated,)
+
+
+class PaymentCreateAPIView(generics.CreateAPIView):
+    serializer_class = PaymentSerializer
+
+    def post(self, request, *args, **kwargs):
+        super().post(request, *args, **kwargs)
+        return create_intent(request)
+
+    def perform_create(self, serializer):
+        new_payment = serializer.save()
+        new_payment.user = self.request.user
+        new_payment.stripe_id = create_intent(self.request).data['intent']['id']
+        new_payment.save()
+
+
+class PaymentRetrieveAPIView(generics.RetrieveAPIView):
+    serializer_class = PaymentSerializer
+    queryset = Payment.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        """Выводит данные о платеже с помощью Stripe"""
+
+        return get_intent(kwargs['pk'])
 
 
 class MyTokenObtainPairView(TokenObtainPairView):
