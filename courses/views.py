@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.viewsets import ModelViewSet
@@ -9,6 +11,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from courses.services import send_notification
 from courses.stripe_api import create_intent, get_intent
 
 
@@ -22,6 +25,21 @@ class LessonCreateAPIView(CreateAPIView):
     serializer_class = LessonSerializer
     permission_classes = (IsAuthenticated, IsNotModeratorForAPIView,)
 
+    def perform_create(self, serializer):
+        new_lesson = serializer.save()
+        new_lesson.owner = self.request.user
+        new_lesson.save()
+
+    def create(self, request, *args, **kwargs):
+        if 'course' in request.data:
+            course = Course.objects.get(pk=request.data['course'])
+            delta = datetime.now() - course.last_update.replace(tzinfo=None)
+            if delta > timedelta(hours=4):
+                send_notification(course)
+            course.last_update = datetime.now()
+            course.save()
+        return super().create(request, *args, **kwargs)
+
 
 class LessonRetrieveAPIView(RetrieveAPIView):
     serializer_class = LessonSerializer
@@ -34,6 +52,17 @@ class LessonUpdateAPIView(UpdateAPIView):
     queryset = Lesson.objects.all()
     permission_classes = (IsAuthenticated, IsOwner,)
 
+    def update(self, request, *args, **kwargs):
+        lesson = Lesson.objects.get(pk=kwargs['pk'])
+        if lesson.course:
+            course = Course.objects.get(pk=lesson.course.pk)
+            delta = datetime.now() - course.last_update.replace(tzinfo=None)
+            if delta > timedelta(hours=4):
+                send_notification(course)
+            course.last_update = datetime.now()
+            course.save()
+        return super().update(request, *args, **kwargs)
+
 
 class LessonDestroyAPIView(DestroyAPIView):
     queryset = Lesson.objects.all()
@@ -44,6 +73,22 @@ class CourseViewSet(ModelViewSet):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
     permission_classes = (IsAuthenticated, IsNotModeratorForViewSet,)
+
+    def perform_create(self, serializer):
+        new_course = serializer.save()
+        new_course.owner = self.request.user
+        new_course.save()
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:
+            return Course.objects.all()
+        return Course.objects.filter(owner=user.pk)
+
+    def update(self, request, *args, **kwargs):
+        course = Course.objects.get(pk=kwargs['pk'])
+        send_notification(course)
+        return super().update(request, *args, **kwargs)
 
 
 class PaymentListAPIView(generics.ListAPIView):
@@ -74,8 +119,6 @@ class PaymentRetrieveAPIView(generics.RetrieveAPIView):
     queryset = Payment.objects.all()
 
     def get(self, request, *args, **kwargs):
-        """Выводит данные о платеже с помощью Stripe"""
-
         return get_intent(kwargs['pk'])
 
 
@@ -88,8 +131,6 @@ class SubscriptionCreateAPIView(generics.CreateAPIView):
     serializer_class = SubscriptionSerializer
 
     def perform_create(self, serializer):
-        """Сохраняет авторизованного пользователя в объекте подписки"""
-
         new_subscription = serializer.save()
         new_subscription.user = self.request.user
         new_subscription.subscribed = True
