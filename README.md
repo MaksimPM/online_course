@@ -1,2 +1,2 @@
-# Online Courses
-- Training project
+# Online Course
+- Project Django REST Framework
